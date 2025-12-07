@@ -5,52 +5,62 @@ import json
 from modules.model_loader import predict_image
 from modules.ocr_reader import extract_ocr
 from modules.gpt_helper import gpt_enhance
+from modules.metadata_builder import build_metadata
 
 
-def analyze_full_coin_v3(front_bytes, back_bytes, user_input):
-    """
-    SagaMoent V3 analyse:
-    - For + bagside
-    - OCR på begge sider
-    - ONNX analyse
-    - GPT forklaring
-    - brugerinput indbygget
-    """
+def analyze_full_coin_v3(front_bytes, back_bytes, user_input_raw):
 
     front_img = Image.open(BytesIO(front_bytes)).convert("RGB")
     back_img = Image.open(BytesIO(back_bytes)).convert("RGB")
 
+    # -------------------------------------------
+    # AI FORSIDE
+    # -------------------------------------------
     pred_front = predict_image(front_img)
+
+    # -------------------------------------------
+    # AI BAGSIDE
+    # -------------------------------------------
     pred_back = predict_image(back_img)
 
-    ocr_front = extract_ocr(front_bytes)
-    ocr_back = extract_ocr(back_bytes)
+    # -------------------------------------------
+    # OCR
+    # -------------------------------------------
+    ocr_front = extract_ocr(front_img).get("text", "")
+    ocr_back = extract_ocr(back_img).get("text", "")
 
+    # -------------------------------------------
+    # USER INPUT (optional)
+    # -------------------------------------------
     try:
-        user_data = json.loads(user_input)
+        user_data = json.loads(user_input_raw)
     except:
         user_data = {}
 
+    # -------------------------------------------
+    # GPT ENHANCEMENT
+    # -------------------------------------------
     gpt_notes = gpt_enhance(
-        prediction=pred_front,
-        ocr_text=f"front: {ocr_front}\nback: {ocr_back}"
+        prediction_text=pred_front.get("label", ""),
+        ocr_text=f"front:{ocr_front} | back:{ocr_back}"
+    )
+
+    # -------------------------------------------
+    # SAMLET METADATA
+    # -------------------------------------------
+    metadata = build_metadata(
+        prediction=pred_front.get("label", ""),
+        confidence=pred_front.get("confidence", 0),
+        ocr_text=(ocr_front or ocr_back),
+        gpt_notes=gpt_notes
     )
 
     return {
-        "label": pred_front.get("label", "Ukendt mønt"),
-        "confidence": pred_front.get("confidence", 0),
-
-        "ocr": ocr_front or ocr_back or "",
-        "gpt": gpt_notes or "Ingen GPT forklaring",
-
-        "year": user_data.get("year", ""),
-        "country": user_data.get("country", ""),
-        "type": user_data.get("type", ""),
-
-        "meta": {
-            "pred_front": pred_front,
-            "pred_back": pred_back,
-            "ocr_front": ocr_front,
-            "ocr_back": ocr_back
-        }
+        "front_prediction": pred_front,
+        "back_prediction": pred_back,
+        "ocr_front": ocr_front,
+        "ocr_back": ocr_back,
+        "gpt_notes": gpt_notes,
+        "user": user_data,
+        "meta": metadata
     }
