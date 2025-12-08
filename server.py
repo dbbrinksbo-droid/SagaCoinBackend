@@ -1,52 +1,50 @@
 import os
-import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
+from io import BytesIO
 
-from modules.unified_analyzer_v16 import analyze_image_v16
+from modules.unified_analyzer_v16 import analyze_coin_full
 
 app = Flask(__name__)
 CORS(app)
-
-UPLOAD_DIR = "uploads"
 
 
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
-        "server": "SagaMoent - V16 AI Engine",
+        "server": "SagaMoent Backend V16",
         "status": "online",
-        "model": "unified_analyzer_v16",
-        "version": "16.0",
-        "time": int(time.time())
+        "model": "sagacoin_full_model.onnx"
     })
 
 
 @app.route("/analyze", methods=["POST"])
-def analyze():
+def analyze_route():
     try:
-        if "image" not in request.files:
-            return jsonify({"success": False, "error": "No image uploaded"}), 400
+        if "front" not in request.files:
+            return jsonify({"success": False, "error": "Missing front image"}), 400
+        if "back" not in request.files:
+            return jsonify({"success": False, "error": "Missing back image"}), 400
 
-        file = request.files["image"]
+        front_bytes = request.files["front"].read()
+        back_bytes = request.files["back"].read()
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        filepath = os.path.join(UPLOAD_DIR, file.filename)
-        file.save(filepath)
+        front_img = Image.open(BytesIO(front_bytes)).convert("RGB")
+        back_img = Image.open(BytesIO(back_bytes)).convert("RGB")
 
-        print("⚙️ Running V16 analyzer on:", filepath)
+        user_input = request.form.get("userInput", "{}")
 
-        result = analyze_image_v16(filepath)
+        result = analyze_coin_full(front_img, back_img, user_input)
 
         return jsonify({
             "success": True,
-            "engine": "V16",
+            "engine": "SagaMoent V16",
             "result": result
-        }), 200
+        })
 
     except Exception as e:
-        print("🔥 SERVER ERROR:", str(e))
+        print("🔥 SERVER ERROR:", e)
         return jsonify({"success": False, "error": str(e)}), 500
 
 
