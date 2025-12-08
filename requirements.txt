@@ -1,7 +1,0 @@
-flask
-flask-cors
-onnxruntime
-numpy
-pillow
-requests
-openai
