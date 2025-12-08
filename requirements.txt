@@ -1,0 +1,8 @@
+flask
+flask-cors
+pillow
+onnxruntime
+numpy
+requests
+python-dotenv
+openai
