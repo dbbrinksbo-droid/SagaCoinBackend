@@ -1,47 +1,109 @@
-from io import BytesIO
-from PIL import Image
+import os
 import json
+import numpy as np
+import onnxruntime as ort
+from PIL import Image
 
-from modules.model_loader import predict_image
-from modules.ocr_reader import extract_ocr
-from modules.gpt_helper import gpt_enhance
-from modules.metadata_builder import build_metadata
+# --------------------------------------------------------------------
+# PATHS
+# --------------------------------------------------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "sagacoin_full_model.onnx")
+LABELS_PATH = os.path.join(BASE_DIR, "..", "models", "labels.json")
+
+_session = None
+_labels = None
 
 
-def analyze_full_coin_v3(front_bytes, back_bytes, user_input_raw):
+# --------------------------------------------------------------------
+# LOAD LABELS
+# --------------------------------------------------------------------
+def load_labels():
+    global _labels
+    if _labels is not None:
+        return _labels
 
-    front_img = Image.open(BytesIO(front_bytes)).convert("RGB")
-    back_img = Image.open(BytesIO(back_bytes)).convert("RGB")
+    if not os.path.exists(LABELS_PATH):
+        print("⚠️ WARNING: labels.json mangler!")
+        _labels = []
+        return _labels
 
-    pred_front = predict_image(front_img)
-    pred_back = predict_image(back_img)
+    with open(LABELS_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
 
-    ocr_front = extract_ocr(front_img).get("text", "")
-    ocr_back = extract_ocr(back_img).get("text", "")
+    # labels.json er et dict → vi sorterer efter index
+    sorted_labels = sorted(data.items(), key=lambda x: x[1])
+    _labels = [item[0] for item in sorted_labels]
 
-    try:
-        user_data = json.loads(user_input_raw)
-    except:
-        user_data = {}
+    print(f"✔ Labels indlæst ({len(_labels)} classes)")
+    return _labels
 
-    gpt_notes = gpt_enhance(
-        prediction_text=pred_front.get("label", ""),
-        ocr_text=f"front:{ocr_front} | back:{ocr_back}"
+
+# --------------------------------------------------------------------
+# LOAD MODEL (ONCE)
+# --------------------------------------------------------------------
+def load_model():
+    global _session
+    if _session is not None:
+        return _session
+
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"❌ Model fil ikke fundet: {MODEL_PATH}")
+
+    print("✔ Loader sagacoin_full_model.onnx ...")
+
+    _session = ort.InferenceSession(
+        MODEL_PATH,
+        providers=["CPUExecutionProvider"]
     )
 
-    metadata = build_metadata(
-        prediction=pred_front.get("label", ""),
-        confidence=pred_front.get("confidence", 0),
-        ocr_text=(ocr_front or ocr_back),
-        gpt_notes=gpt_notes
-    )
+    print("✔ Full-model loaded successfully")
+    return _session
+
+
+# --------------------------------------------------------------------
+# PREPROCESS
+# --------------------------------------------------------------------
+def preprocess(img: Image.Image):
+    """
+    Standardiseret preprocess:
+    - resized til modelens input (224x224 typisk)
+    - RGB float32
+    - normaliseret til 0-1
+    - CHW (3,224,224)
+    """
+    img = img.resize((224, 224)).convert("RGB")
+    arr = np.asarray(img).astype("float32") / 255.0
+    arr = np.transpose(arr, (2, 0, 1))  # HWC → CHW
+    arr = np.expand_dims(arr, axis=0)
+    return arr
+
+
+# --------------------------------------------------------------------
+# PREDICT (MAIN FUNCTION)
+# --------------------------------------------------------------------
+def predict_image(img: Image.Image):
+    session = load_model()
+    labels = load_labels()
+
+    arr = preprocess(img)
+    input_name = session.get_inputs()[0].name
+
+    outputs = session.run(None, {input_name: arr})
+    vector = outputs[0][0]
+
+    idx = int(np.argmax(vector))
+    conf = float(np.max(vector))
+
+    if labels and idx < len(labels):
+        label = labels[idx]
+    else:
+        label = f"class_{idx}"
 
     return {
-        "front_prediction": pred_front,
-        "back_prediction": pred_back,
-        "ocr_front": ocr_front,
-        "ocr_back": ocr_back,
-        "gpt_notes": gpt_notes,
-        "user": user_data,
-        "meta": metadata
+        "label": label,
+        "confidence": conf,
+        "index": idx,
+        "raw": vector.tolist(),
+        "num_labels": len(labels)
     }
