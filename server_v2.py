@@ -4,17 +4,15 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 
-# Vigtig: Analyzer som bruger model_loader → AI pipeline
 from modules.analyzer_v3 import analyze_full_coin_v3
-
-# Vigtig: Sikrer at ONNX-modellen downloades ved startup
 from modules.model_loader import ensure_model_exists
 
+app = Flask(__name__)
+CORS(app)
 # ----------------------------------------------------------
 #  INITIALIZE SERVER
 # ----------------------------------------------------------
-app = Flask(__name__)
-CORS(app)
+
 
 # Download ONNX modellen når serveren starter
 print("🚀 SagaMoent Backend V12 – initialiserer model…")
