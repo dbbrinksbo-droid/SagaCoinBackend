@@ -9,54 +9,26 @@ from modules.metadata_builder import build_metadata
 
 
 def analyze_full_coin_v3(front_bytes, back_bytes, user_input_raw):
-    """
-    Full analyze flow V3:
-    - Forside prediction
-    - Bagside prediction
-    - OCR på begge sider
-    - GPT forklaring
-    - Samlet metadata retur
-    """
 
-    # Load images from bytes
     front_img = Image.open(BytesIO(front_bytes)).convert("RGB")
     back_img = Image.open(BytesIO(back_bytes)).convert("RGB")
 
-    # -------------------------------------------
-    # AI FORSIDE
-    # -------------------------------------------
     pred_front = predict_image(front_img)
-
-    # -------------------------------------------
-    # AI BAGSIDE
-    # -------------------------------------------
     pred_back = predict_image(back_img)
 
-    # -------------------------------------------
-    # OCR
-    # -------------------------------------------
     ocr_front = extract_ocr(front_img).get("text", "")
     ocr_back = extract_ocr(back_img).get("text", "")
 
-    # -------------------------------------------
-    # USER INPUT (optional)
-    # -------------------------------------------
     try:
         user_data = json.loads(user_input_raw)
     except:
         user_data = {}
 
-    # -------------------------------------------
-    # GPT ENHANCEMENT
-    # -------------------------------------------
     gpt_notes = gpt_enhance(
         prediction_text=pred_front.get("label", ""),
         ocr_text=f"front:{ocr_front} | back:{ocr_back}"
     )
 
-    # -------------------------------------------
-    # SAMLET METADATA
-    # -------------------------------------------
     metadata = build_metadata(
         prediction=pred_front.get("label", ""),
         confidence=pred_front.get("confidence", 0),
@@ -73,4 +45,3 @@ def analyze_full_coin_v3(front_bytes, back_bytes, user_input_raw):
         "user": user_data,
         "meta": metadata
     }
-
