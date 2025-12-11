@@ -32,4 +32,3 @@ def extract_ocr(pil_image: Image.Image):
     except Exception as e:
         print("OCR ERROR:", e)
         return {"success": False, "text": ""}
-
