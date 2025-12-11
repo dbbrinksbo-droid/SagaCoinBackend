@@ -7,8 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Flask skal lytte på Railway's port
-ENV PORT=8080
+# ❌ Fjernet: ENV PORT=8080
+# Railway sætter selv PORT
 
 CMD ["python3", "server_v2.py"]
-
