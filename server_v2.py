@@ -44,7 +44,4 @@ def full_analyze_v3():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-if __name__ == "__main__":
-    print("🔥 SagaMoent Backend V12 starting...")
-    app.run(host="0.0.0.0", port=8000)
-
+app = app
