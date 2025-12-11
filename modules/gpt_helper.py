@@ -25,4 +25,3 @@ def gpt_enhance(prediction_text, ocr_text):
 
     except Exception as e:
         return f"GPT-fejl: {e}"
-
