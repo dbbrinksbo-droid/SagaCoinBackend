@@ -1,0 +1,22 @@
+# AI / ML models
+*.onnx
+*.onnx.data
+*.pt
+*.pth
+*.bin
+
+# Training / datasets
+models/
+checkpoints/
+training_data/
+dataset/
+datasets/
+
+# Cache / temp
+__pycache__/
+*.log
+
+# Virtual env
+venv/
+.env
+
