@@ -1,13 +1,12 @@
-# modules/model_loader.py — SagaMoent AI Model Loader (Railway safe)
+# modules/model_loader.py — SagaMoent AI Model Loader (LOCAL + Railway safe)
 
 import os
 import json
-import urllib.request
 import numpy as np
 import onnxruntime as ort
 from PIL import Image
 
-# Paths (relative to project root /app)
+# Paths (relative to project root)
 MODEL_PATH = "sagacoin_full_model.onnx"
 LABELS_FILE = "labels.json"
 
@@ -16,19 +15,28 @@ _labels = None
 
 
 def download_model_if_needed():
+    """
+    Lokal-first strategi:
+    - Hvis modellen findes lokalt → brug den
+    - Hvis den IKKE findes → forsøg MODEL_URL (Railway / prod)
+    """
+
+    # ✅ Lokal model findes → brug den
+    if os.path.exists(MODEL_PATH):
+        print("✔ Using local ONNX model")
+        return True
+
+    # ⛔ Lokal model mangler → prøv MODEL_URL
     model_url = os.getenv("MODEL_URL")
 
     if not model_url:
-        print("❌ MODEL_URL environment variable is not set")
+        print("❌ MODEL_URL not set and local model missing")
         return False
 
-    if os.path.exists(MODEL_PATH):
-        print("✔ Model already exists")
-        return True
-
-    print(f"⬇ Downloading model from MODEL_URL")
+    print("⬇ Downloading ONNX model from MODEL_URL")
 
     try:
+        import urllib.request
         urllib.request.urlretrieve(model_url, MODEL_PATH)
         print("✔ Model downloaded successfully")
         return True
@@ -51,7 +59,7 @@ def load_labels():
     with open(LABELS_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Sort labels by index value
+    # Sort labels by index
     _labels = [label for label, idx in sorted(data.items(), key=lambda x: x[1])]
     print(f"✔ Loaded {len(_labels)} labels")
 
@@ -65,7 +73,7 @@ def load_model():
         return _session
 
     if not download_model_if_needed():
-        raise RuntimeError("Model could not be downloaded")
+        raise RuntimeError("ONNX model unavailable")
 
     print("🔄 Loading ONNX model…")
 
@@ -81,8 +89,8 @@ def load_model():
 def preprocess(img: Image.Image):
     img = img.resize((224, 224)).convert("RGB")
     arr = np.array(img).astype("float32") / 255.0
-    arr = arr.transpose(2, 0, 1)          # CHW
-    arr = arr[np.newaxis, :]              # NCHW
+    arr = arr.transpose(2, 0, 1)   # CHW
+    arr = arr[np.newaxis, :]       # NCHW
     return arr
 
 
