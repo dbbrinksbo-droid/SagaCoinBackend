@@ -1,6 +1,10 @@
 # server_v2.py
+# SagaMoent Backend — DEBUG + VISION ONLY
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
+print("🔥🔥🔥 NEW SERVER_V2 ACTIVE — VISION ONLY 🔥🔥🔥")
 
 from modules.analyzer_v3 import analyze_full_coin_v3
 
@@ -25,7 +29,8 @@ def full_analyze_v3():
             back_bytes=back_bytes,
         )
 
-        # 🔥 RETURN EXACTLY WHAT ANALYZER RETURNS
+        print("🔥 RESULT KEYS:", result.keys())
+
         return jsonify({
             "success": True,
             "engine": "SagaMoent V12",
