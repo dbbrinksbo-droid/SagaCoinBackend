@@ -1,70 +1,59 @@
 # modules/vision_gpt_reader.py
-# SagaMoent Vision GPT Reader — IMAGE ONLY, NO GUESSING
+# SagaMoent Vision GPT Reader — IMAGE → TEXT (STRICT)
 
-import os
 import base64
 from openai import OpenAI
 
-# OpenAI client (uses OPENAI_API_KEY from env)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-SYSTEM_PROMPT = """
-You are a visual coin transcription engine.
-
-STRICT RULES:
-- Use ONLY what is visible in the image.
-- Transcribe visible text exactly as it appears.
-- If text is unclear or not visible, write: NOT VISIBLE
-- Do NOT guess.
-- Do NOT explain.
-- Output JSON ONLY in the following format:
-
-{
-  "front_text": "...",
-  "back_text": "...",
-  "symbols": []
-}
-"""
+client = OpenAI()
 
 
-def read_coin_from_image(image_bytes: bytes) -> dict:
+def read_coin_from_image(image_bytes: bytes):
     """
-    Reads visible text from a coin image using Vision GPT.
+    Uses GPT-4 Vision to read all visible text, symbols and details
+    directly from the coin image.
     """
 
-    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    encoded = base64.b64encode(image_bytes).decode("utf-8")
 
-    response = client.responses.create(
+    response = client.chat.completions.create(
         model="gpt-4.1-mini",
-        input=[
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a professional numismatist. "
+                    "Read ONLY what is visually present on the coin image. "
+                    "Do NOT guess. Do NOT hallucinate. "
+                    "If something is not visible, say NOT VISIBLE."
+                ),
+            },
             {
                 "role": "user",
                 "content": [
-                    {"type": "input_text", "text": SYSTEM_PROMPT},
                     {
-                        "type": "input_image",
-                        "image_base64": image_b64
-                    }
+                        "type": "text",
+                        "text": (
+                            "Read the coin carefully. "
+                            "Extract front text, back text, symbols, numbers, "
+                            "dates, mint marks and any visible details."
+                        ),
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{encoded}"
+                        },
+                    },
                 ],
-            }
+            },
         ],
-        max_output_tokens=300,
+        temperature=0.0,
     )
 
-    # Extract raw text output
-    output_text = response.output_text.strip()
+    text = response.choices[0].message.content.strip()
 
-    try:
-        data = eval(output_text)
-        return {
-            "front_text": data.get("front_text", "NOT VISIBLE"),
-            "back_text": data.get("back_text", "NOT VISIBLE"),
-            "symbols": data.get("symbols", []),
-        }
-    except Exception:
-        # Absolute safety fallback (no guessing)
-        return {
-            "front_text": "NOT VISIBLE",
-            "back_text": "NOT VISIBLE",
-            "symbols": [],
-        }
+    return {
+        "front_text": text,
+        "back_text": text,
+        "symbols": [],
+    }
