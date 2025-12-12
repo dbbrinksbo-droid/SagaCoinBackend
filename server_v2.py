@@ -1,50 +1,33 @@
-# server_v2.py
-# SagaMoent Backend — DEBUG + VISION ONLY
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-print("🔥🔥🔥 NEW SERVER_V2 ACTIVE — VISION ONLY 🔥🔥🔥")
-
 from modules.analyzer_v3 import analyze_full_coin_v3
+
+print("🔥🔥🔥 NEW SERVER_V2 ACTIVE — VISION ONLY 🔥🔥🔥")
 
 app = Flask(__name__)
 CORS(app)
 
 
-@app.route("/full-analyze-v3", methods=["POST"])
-def full_analyze_v3():
-    try:
-        front_file = request.files.get("front")
-        back_file = request.files.get("back")
+@app.route("/analyze", methods=["POST"])
+def analyze():
+    if "front" not in request.files:
+        return jsonify({"success": False, "error": "Missing front image"}), 400
 
-        if not front_file:
-            return jsonify({"success": False, "error": "No front image"}), 400
+    front_bytes = request.files["front"].read()
+    back_bytes = request.files["back"].read() if "back" in request.files else None
 
-        front_bytes = front_file.read()
-        back_bytes = back_file.read() if back_file else None
+    result = analyze_full_coin_v3(front_bytes, back_bytes)
 
-        result = analyze_full_coin_v3(
-            front_bytes=front_bytes,
-            back_bytes=back_bytes,
-        )
-
-        print("🔥 RESULT KEYS:", result.keys())
-
-        return jsonify({
-            "success": True,
-            "engine": "SagaMoent V12",
-            "result": result
-        })
-
-    except Exception as e:
-        print("❌ ANALYZE ERROR:", str(e))
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+    return jsonify({
+        "engine": "SagaMoent V12 — VISION ONLY",
+        "success": True,
+        "result": result
+    })
 
 
 if __name__ == "__main__":
-    print("🚀 Starting SagaMoent Backend on port 8080")
-    app.run(host="0.0.0.0", port=8080)
+    import os
+
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
