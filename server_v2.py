@@ -1,10 +1,10 @@
-# server_v2.py — SagaMoent Backend V12 (Production ready)
+# server_v2.py — SagaMoent Backend V12 (Modules version)
 
-import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from modules.analyzer_v3 import analyze_full_coin_v3
+
 app = Flask(__name__)
 CORS(app)
 
@@ -32,9 +32,9 @@ def full_analyze_v3():
         user_input = request.form.get("userInput", "{}")
 
         result = analyze_full_coin_v3(
-            front_bytes=front_bytes,
-            back_bytes=back_bytes,
-            user_input_raw=user_input
+            front_bytes,
+            back_bytes,
+            user_input
         )
 
         return jsonify({
@@ -45,16 +45,8 @@ def full_analyze_v3():
 
     except Exception as e:
         print("🔥 BACKEND ERROR:", e)
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-# IMPORTANT:
-# Railway + Docker + Gunicorn entrypoint
-# Gunicorn will import `app` from this file
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
+# Gunicorn entrypoint
+app = app
