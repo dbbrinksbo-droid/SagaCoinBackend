@@ -1,3 +1,5 @@
+# modules/model_loader.py — SagaMoent AI Model Loader (Railway safe)
+
 import os
 import json
 import urllib.request
@@ -5,6 +7,7 @@ import numpy as np
 import onnxruntime as ort
 from PIL import Image
 
+# Paths (relative to project root /app)
 MODEL_PATH = "sagacoin_full_model.onnx"
 LABELS_FILE = "labels.json"
 
@@ -16,18 +19,18 @@ def download_model_if_needed():
     model_url = os.getenv("MODEL_URL")
 
     if not model_url:
-        print("❌ MODEL_URL not set!")
+        print("❌ MODEL_URL environment variable is not set")
         return False
 
     if os.path.exists(MODEL_PATH):
         print("✔ Model already exists")
         return True
 
-    print(f"⬇ Downloading model from: {model_url}")
+    print(f"⬇ Downloading model from MODEL_URL")
 
     try:
         urllib.request.urlretrieve(model_url, MODEL_PATH)
-        print("✔ Model downloaded")
+        print("✔ Model downloaded successfully")
         return True
     except Exception as e:
         print("❌ MODEL DOWNLOAD FAILED:", e)
@@ -37,54 +40,61 @@ def download_model_if_needed():
 def load_labels():
     global _labels
 
-    if _labels:
+    if _labels is not None:
         return _labels
 
     if not os.path.exists(LABELS_FILE):
-        print("⚠ labels.json missing")
+        print("⚠ labels.json not found")
         _labels = []
         return _labels
 
-    with open(LABELS_FILE, "r") as f:
+    with open(LABELS_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Sort labels by index value
     _labels = [label for label, idx in sorted(data.items(), key=lambda x: x[1])]
     print(f"✔ Loaded {len(_labels)} labels")
+
     return _labels
 
 
 def load_model():
     global _session
 
-    if _session:
+    if _session is not None:
         return _session
 
-    download_model_if_needed()
+    if not download_model_if_needed():
+        raise RuntimeError("Model could not be downloaded")
 
-    print("🔄 Loading ONNX model...")
-    _session = ort.InferenceSession(MODEL_PATH, providers=["CPUExecutionProvider"])
-    print("✔ ONNX ready")
+    print("🔄 Loading ONNX model…")
 
+    _session = ort.InferenceSession(
+        MODEL_PATH,
+        providers=["CPUExecutionProvider"]
+    )
+
+    print("✔ ONNX model ready")
     return _session
 
 
-def preprocess(img):
+def preprocess(img: Image.Image):
     img = img.resize((224, 224)).convert("RGB")
-    arr = np.array(img).astype("float32") / 255
-    arr = arr.transpose(2, 0, 1)
-    arr = arr[np.newaxis, :]
+    arr = np.array(img).astype("float32") / 255.0
+    arr = arr.transpose(2, 0, 1)          # CHW
+    arr = arr[np.newaxis, :]              # NCHW
     return arr
 
 
-def predict_image(img):
+def predict_image(img: Image.Image):
     session = load_model()
     labels = load_labels()
 
     arr = preprocess(img)
     input_name = session.get_inputs()[0].name
 
-    out = session.run(None, {input_name: arr})
-    vector = out[0][0]
+    outputs = session.run(None, {input_name: arr})
+    vector = outputs[0][0]
 
     idx = int(np.argmax(vector))
     conf = float(vector[idx])
