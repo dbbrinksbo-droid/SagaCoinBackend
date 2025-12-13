@@ -1,4 +1,6 @@
-# model_loader.py — LOCAL ONLY (SagaMoent FINAL)
+import os
+print("🚨 USING MODEL_LOADER FILE:", __file__)
+MODEL_PATH = "/models/sagacoin_full_model.onnx"
 
 import os
 import json
