@@ -7,3 +7,4 @@ requests
 python-dotenv
 openai
 gunicorn
+gdown
