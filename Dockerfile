@@ -9,4 +9,4 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "server_v2.py"]
+CMD ["sh", "/app/start.sh"]
