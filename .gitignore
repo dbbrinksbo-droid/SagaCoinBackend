@@ -1,22 +1,38 @@
+# =========================
 # AI / ML models
-*.onnx
+# =========================
+
+# ❗ VIGTIGT:
+# ONNX er IKKE ignoreret lige nu,
+# fordi vi skal bootstrappe modellen ind i Railway-volume
+# Når volumen virker → kan *.onnx tilføjes igen
+
+# *.onnx
 *.onnx.data
 *.pt
 *.pth
 *.bin
 
+
+# =========================
 # Training / datasets
+# =========================
 models/
 checkpoints/
 training_data/
 dataset/
 datasets/
 
+
+# =========================
 # Cache / temp
+# =========================
 __pycache__/
 *.log
 
-# Virtual env
+
+# =========================
+# Virtual env / secrets
+# =========================
 venv/
 .env
-
